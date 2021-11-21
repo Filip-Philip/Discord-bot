@@ -1,4 +1,6 @@
 import asyncio
+from re import I
+from discord.flags import Intents
 from dotenv import load_dotenv
 from youtubesearchpython import VideosSearch
 import discord
@@ -7,7 +9,7 @@ import os
 import pafy
 from queue import Queue
 from random import randint
-import urllib.request
+from urllib.request import urlopen
 import json
 import urllib
 
@@ -15,10 +17,14 @@ load_dotenv('env_variables.env')
 
 bot_id = os.getenv('bot_id')
 discord_token = os.getenv('discord_token')
-bot = commands.Bot(command_prefix = '!')
+intents = Intents.all()
+bot = commands.Bot(command_prefix = '!', intents = intents)
 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5','options': '-vn'}
 NUMBER_OF_SEARCHES = 10
+TIME_TO_AWAIT_SONG_CHOICE = 120
 SONG_CHOSEN = -1
+TIME_FOR_GREETINGS = 6
+ALLOWED_INACTIVITY_PERIOD = 600
 skip = False
 Q = Queue()
 
@@ -47,7 +53,8 @@ async def on_message(message):
 
     global SONG_CHOSEN
     for i in range(1, NUMBER_OF_SEARCHES+1):
-        if message.content.startswith(str(i)):
+        # if message.content.startswith(str(i)):
+        if message.content == str(i):
             SONG_CHOSEN = i
     await bot.process_commands(message)
             
@@ -107,16 +114,18 @@ async def play( ctx, *, song_name):
         url = 'https://www.youtube.com/oembed'
         query_string = urllib.parse.urlencode(params)
         url = url + "?" + query_string
-        with urllib.request.urlopen(url) as response:
+        with urlopen(url) as response:
             response_text = response.read()
             data = json.loads(response_text.decode())
             title = data['title']
     else:
         vid = VideosSearch(song_name, limit = 1) # search for the video in youtube
         title = vid.result()['result'][0]['title']
+
     
     async with ctx.typing():
         await ctx.send(title + ' added to queue')
+
     voice_client = ctx.message.guild.voice_client
     Q.put(song_name)
     
@@ -125,7 +134,6 @@ async def play( ctx, *, song_name):
     
     global skip
     while not Q.empty():
-
         now_play = Q.get()
         if now_play[:len('https://www.youtube.com/')] == 'https://www.youtube.com/':
             song = pafy.new(now_play)
@@ -142,8 +150,8 @@ async def play( ctx, *, song_name):
             source = discord.FFmpegPCMAudio(audio.url, **FFMPEG_OPTIONS)
             voice_client.play(source) 
         song_duration = convert_timestamp_to_seconds(song_duration)
+        
         t = 0
-
         while t <= song_duration and not skip: 
             await asyncio.sleep(1)
             if voice_client.is_playing():
@@ -187,7 +195,7 @@ async def force_skip(ctx):
     else:
         await ctx.send("I'm playing nothing at the moment")
 
-@bot.command(name = 'search', help = '10 top searches to choose from')
+@bot.command(name = 'search', help = f'{NUMBER_OF_SEARCHES} top searches to choose from')
 async def search(ctx, *, song_name):
     results = VideosSearch(song_name, limit = NUMBER_OF_SEARCHES)
     results = results.result()['result']
@@ -209,7 +217,7 @@ async def search(ctx, *, song_name):
     global SONG_CHOSEN
     SONG_CHOSEN = -1
     time = 0
-    while time < 120: # time to choose the number of a song
+    while time < TIME_TO_AWAIT_SONG_CHOICE: # time to choose the number of a song
         await asyncio.sleep(1)
         if SONG_CHOSEN != -1:
             await play(ctx, song_name = results[SONG_CHOSEN - 1]['link'])
@@ -234,7 +242,7 @@ async def on_voice_state_update(member, before, after):
             if not voice_client.is_playing():
                 greeting = randint(0, len(GREETINGS) - 1)
                 voice_client.play(discord.FFmpegPCMAudio(executable='ffmpeg.exe', source = GREETINGS[greeting]))
-                await asyncio.sleep(6) # 6 sec is enough for short greetings
+                await asyncio.sleep(TIME_FOR_GREETINGS) 
     
 
     if before.channel is None: ## disconnect when inactive
@@ -245,7 +253,7 @@ async def on_voice_state_update(member, before, after):
             time += 1
             if voice.is_playing() and not voice.is_paused():
                 time = 0
-            if time == 600:
+            if time == ALLOWED_INACTIVITY_PERIOD:
                 await voice.disconnect()
             if not voice.is_connected():
                 break
