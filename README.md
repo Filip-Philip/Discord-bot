@@ -1,6 +1,6 @@
 # Discord bot
 
-You need an updated version of Pafy. The newest release on https://pypi.org/project/pafy/ doesn't tackle the change in dislike data on Youtube. All you need to do is make this change https://github.com/mps-youtube/pafy/commit/110bf7c01dcf57ec4e6e327e0c7907a4099d6933 in the Pafy source code or download Pafy straight from here https://github.com/mps-youtube/pafy.
+You need an updated version of Pafy for the song streaming to work. The newest release on https://pypi.org/project/pafy/ doesn't tackle the change in dislike data on Youtube. All you need to do is make this change https://github.com/mps-youtube/pafy/commit/110bf7c01dcf57ec4e6e327e0c7907a4099d6933 in the Pafy source code or download Pafy straight from here https://github.com/mps-youtube/pafy.
 
 bot.py - a discord music bot based on Youtube made for private use.
   A short description of functionalities:
