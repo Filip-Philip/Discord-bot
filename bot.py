@@ -53,7 +53,6 @@ async def on_message(message):
 
     global SONG_CHOSEN
     for i in range(1, NUMBER_OF_SEARCHES+1):
-        # if message.content.startswith(str(i)):
         if message.content == str(i):
             SONG_CHOSEN = i
     await bot.process_commands(message)
@@ -154,7 +153,7 @@ async def play( ctx, *, song_name):
         t = 0
         while t <= song_duration and not skip: 
             await asyncio.sleep(1)
-            if voice_client.is_playing():
+            if not voice_client.is_paused():
                 t += 1
         
         try:
